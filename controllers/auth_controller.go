@@ -162,3 +162,85 @@ func ResendCode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	utils.WriteToResponseBody(w, webResponse)
 }
 
+
+func Login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var req validations.LoginRequest
+	utils.ReadFromRequestBody(r, &req)
+
+	err := validate.Struct(req)
+	utils.PanicIfError(err)
+
+	var user models.User
+	err = config.DB.Where("email = ?", req.Email).First(&user).Error
+	if err != nil || !utils.CheckPasswordHash(req.Password, user.Password) {
+		panic(errors.CustomError{
+			Code:    http.StatusUnauthorized,
+			Status:  "UNAUTHORIZED",
+			Message: "Email or password is incorrect",
+		})
+	}
+
+	if !user.Verified {
+		panic(errors.CustomError{
+			Code:    http.StatusForbidden,
+			Status:  "FORBIDDEN",
+			Message: "Please verify your account first",
+		})
+	}
+
+	accessToken, err := utils.GenerateJWT(user.ID, user.Name, user.Email, false)
+	utils.PanicIfError(err)
+
+	refreshToken, err := utils.GenerateJWT(user.ID, user.Name, user.Email, true)
+	utils.PanicIfError(err)
+
+	webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "Login success",
+		Data: map[string]string{
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+		},
+	}
+
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
+}
+
+func RefreshToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var req validations.RefreshTokenRequest
+	utils.ReadFromRequestBody(r, &req)
+
+	err := validate.Struct(req)
+	utils.PanicIfError(err)
+
+	claims, err := utils.VerifyToken(req.RefreshToken, true)
+	if err != nil {
+		panic(errors.CustomError{
+			Code:    http.StatusUnauthorized,
+			Status:  "UNAUTHORIZED",
+			Message: "Invalid refresh token",
+		})
+	}
+
+	id := uint(claims["id"].(float64))
+
+	accessToken, err := utils.GenerateJWT(id, claims["name"].(string), claims["email"].(string), false)
+	utils.PanicIfError(err)
+
+	webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "Token refreshed successfully",
+		Data: map[string]string{
+			"access_token": accessToken,
+		},
+	}
+
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
+}
+

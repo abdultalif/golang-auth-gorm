@@ -11,3 +11,7 @@ type VerifyCodeRequest struct {
 	Email string `json:"email" validate:"required,email"`
 	Code  string `json:"code" validate:"required,len=6"`
 }
+
+type ResendCodeRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}

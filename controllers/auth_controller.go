@@ -114,3 +114,51 @@ func VerifyUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.WriteHeader(http.StatusOK)
 	utils.WriteToResponseBody(w, webResponse)
 }
+
+
+func ResendCode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var req validations.ResendCodeRequest
+	utils.ReadFromRequestBody(r, &req)
+
+	err := validate.Struct(req)
+	utils.PanicIfError(err)
+
+	var user models.User
+	err = config.DB.Where("email = ?", req.Email).First(&user).Error
+	if err != nil {
+		panic(errors.CustomError{
+			Code:    http.StatusNotFound,
+			Status:  "NOT FOUND",
+			Message: "User not found",
+		})
+	}
+
+	if user.Verified {
+		panic(errors.CustomError{
+			Code:    http.StatusConflict,
+			Status:  "CONFLICT",
+			Message: "User already verified. No further action is needed.",
+		})
+	}
+
+	
+	config.DB.Where("user_id = ?", user.ID).Delete(&models.VerificationCode{})
+
+	
+	code, err := services.CreateVerificationCode(user.ID)
+	utils.PanicIfError(err)
+
+	newErr := services.SendVerificationEmail(user.Email, code)
+	utils.PanicIfError(newErr)
+
+	webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "Verification code resent successfully, please check your email",
+	}
+
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
+}
+

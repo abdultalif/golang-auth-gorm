@@ -1,11 +1,16 @@
 package routes
 
-import "github.com/julienschmidt/httprouter"
+import (
+	"github.com/abdultalif/golang-auth-gorm/controllers"
+	"github.com/abdultalif/golang-auth-gorm/errors"
+	"github.com/julienschmidt/httprouter"
+)
 
 func SetupRouter() *httprouter.Router {
 	router := httprouter.New()
 
-	// router.POST("/api/v1/auth")
+	router.POST("/api/v1/auth", controllers.Register)
 
+	router.PanicHandler = errors.ErrorHandler
 	return router
 }

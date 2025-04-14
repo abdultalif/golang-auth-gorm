@@ -1,6 +1,7 @@
 package services
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/abdultalif/golang-auth-gorm/config"
@@ -12,7 +13,11 @@ import (
 func CreateUser(name, email, password string) (*models.User, error) {
 
 	if config.DB.Where("email = ?", email).First(&models.User{}).RowsAffected > 0 {
-		panic(errors.NewDuplicateError("Email already exists"))
+		panic(errors.CustomError{
+			Code: http.StatusConflict,
+			Status: "CONFLICT",
+			Message: "Email already exists",
+		})
 	}
 
 	hashed, _ := utils.HashPassword(password)
@@ -34,7 +39,7 @@ func CreateVerificationCode(userID uint) (string, error) {
 	verif := models.VerificationCode{
 		UserID:    userID,
 		Code:      hashed,
-		ExpiresAt: time.Now().Add(10 * time.Minute),
+		ExpiresAt: time.Now().Add(30 * time.Minute),
 	}
 	err = config.DB.Create(&verif).Error
 	return code, err

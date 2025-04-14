@@ -2,7 +2,11 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/abdultalif/golang-auth-gorm/config"
+	"github.com/abdultalif/golang-auth-gorm/errors"
+	"github.com/abdultalif/golang-auth-gorm/models"
 	"github.com/abdultalif/golang-auth-gorm/services"
 	"github.com/abdultalif/golang-auth-gorm/utils"
 	"github.com/abdultalif/golang-auth-gorm/validations"
@@ -30,7 +34,7 @@ func Register(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	code, err := services.CreateVerificationCode(user.ID)
 	utils.PanicIfError(err)
-	
+
 	newErr := services.SendVerificationEmail(user.Email, code)
 	utils.PanicIfError(newErr)
 
@@ -48,5 +52,65 @@ func Register(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	utils.WriteToResponseBody(w, webResponse)
+}
+
+func VerifyUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var req validations.VerifyCodeRequest
+	utils.ReadFromRequestBody(r, &req)
+
+	err := validate.Struct(req)
+	utils.PanicIfError(err)
+
+	var user models.User
+	err = config.DB.Where("email = ?", req.Email).First(&user).Error;
+	if err != nil {
+		panic(errors.CustomError{
+			Code: http.StatusNotFound,
+			Status: "NOT FOUND",
+			Message: "User not found",
+		})
+	}
+
+
+	var code models.VerificationCode
+	err = config.DB.Where("user_id = ?", user.ID).First(&code).Error
+	if err != nil {
+		panic(errors.CustomError{
+			Code: http.StatusBadRequest,
+			Status: "BAD REQUEST",
+			Message: "Verification code not found",
+		})
+	}
+
+	if !utils.CheckPasswordHash(req.Code, code.Code) {
+		panic(errors.CustomError{
+			Code:    http.StatusBadRequest,
+			Status:  "BAD REQUEST",
+			Message: "Invalid code",
+		})
+	}
+
+	if time.Now().After(code.ExpiresAt) {
+		panic(errors.CustomError{
+			Code:    http.StatusBadRequest,
+			Status:  "BAD REQUEST",
+			Message: "Code has expired",
+		})
+	}
+
+
+	user.Verified = true
+	config.DB.Save(&user)
+	config.DB.Delete(&code)
+
+	webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code: http.StatusOK,
+		Status: "OK",
+		Message: "User verified successfully",
+	}
+
+	w.WriteHeader(http.StatusOK)
 	utils.WriteToResponseBody(w, webResponse)
 }

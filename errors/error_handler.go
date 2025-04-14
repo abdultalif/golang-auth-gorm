@@ -18,6 +18,10 @@ func ErrorHandler(writer http.ResponseWriter, request *http.Request, err interfa
 		return
 	}
 
+	if conflictError(writer, request, err) {
+		return
+	}
+
 	internalServerError(writer, request, err)
 }
 
@@ -41,6 +45,12 @@ func badRequestError(writer http.ResponseWriter, request *http.Request, err inte
             switch e.Tag() {
             case "required":
                 message = "This field is required"
+			case "eqfield":
+				message = fmt.Sprintf("Field must be equal to %s", e.Param())
+			case "email":
+				message = "Invalid email format"
+			case "len":
+				message = fmt.Sprintf("Length must be %s", e.Param())
             case "min":
                 message = fmt.Sprintf("Minimum length is %s", e.Param())
             case "max":
@@ -75,6 +85,26 @@ func notFoundError(writer http.ResponseWriter, request *http.Request, err interf
 			Success: false,
 			Code:    http.StatusNotFound,
 			Status: "NOT FOUND",
+			Error:   exception.Error,
+		}
+
+	utils.WriteToResponseBody(writer, WebResponseError)
+		return true
+	} else {
+		return false
+	}
+}
+
+func conflictError(writer http.ResponseWriter, request *http.Request, err interface{}) bool {
+	exception, ok := err.(DuplicateError)
+	if ok {
+		writer.Header().Add("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusConflict)
+
+		WebResponseError := utils.WebResponseError{
+			Success: false,
+			Code:    http.StatusConflict,
+			Status: "CONFLICT",
 			Error:   exception.Error,
 		}
 

@@ -6,12 +6,14 @@ import (
 	"os"
 
 	"github.com/abdultalif/golang-auth-gorm/config"
+	"github.com/abdultalif/golang-auth-gorm/models"
 	"github.com/abdultalif/golang-auth-gorm/routes"
 )
 
 func main() {
 	config.LoadENV()
 	config.ConnectDB()
+	config.DB.AutoMigrate(&models.User{}, &models.VerificationCode{})
 
 	router := routes.SetupRouter()
 

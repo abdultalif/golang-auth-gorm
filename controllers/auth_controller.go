@@ -244,3 +244,34 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	utils.WriteToResponseBody(w, webResponse)
 }
 
+
+func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	id := r.Header.Get("X-User-ID")
+
+	var user models.User
+	err := config.DB.First(&user, id).Error
+	if err != nil {
+		panic(errors.CustomError{
+			Code: http.StatusNotFound,
+			Status: "NOT FOUND",
+			Message: "User not found",
+		})
+	}
+
+	webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "User profile fetched successfully",
+		Data: map[string]interface{}{
+			"id":       user.ID,
+			"name":     user.Name,
+			"email":    user.Email,
+			"verified": user.Verified,
+		},
+	}
+
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
+}
+

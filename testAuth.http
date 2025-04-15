@@ -18,5 +18,42 @@ Content-Type: application/json
 
 {
     "email": "abdultalif75@gmail.com",
-    "code": "495YBY",
+    "code": "93NVEB"
 }
+
+### resend code
+POST http://localhost:3000/api/v1/auth/resend-code
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif75@gmail.com"
+}
+
+
+### Login User
+POST http://localhost:3000/api/v1/auth/login
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif75@gmail.com",
+    "password": "123456"
+}
+
+
+### Refresh Token
+POST http://localhost:3000/api/v1/auth/refresh-token
+Accept: application/json
+Content-Type: application/json
+
+{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFiZHVsdGFsaWY3NUBnbWFpbC5jb20iLCJleHAiOjE3NDQ4MTY3MjgsImlkIjozLCJuYW1lIjoiQWJkdWwgVGFsaWYifQ.WACoN5HGXICaKO5HyeZ30-Kb7LjtCKsCq7OPmUVNl2o"
+}
+
+
+### current now
+GET http://localhost:3000/api/v1/user/profile
+Accept: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFiZHVsdGFsaWY3NUBnbWFpbC5jb20iLCJleHAiOjE3NDQ3NDE2NTEsImlkIjozLCJuYW1lIjoiQWJkdWwgVGFsaWYifQ.XGSHBXW5yb0uEr3pGIzyQoXjl0XF5cOoIDPmI2Drh3E
+

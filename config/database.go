@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/abdultalif/golang-auth-gorm/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -22,11 +22,13 @@ func ConnectDB() {
 		os.Getenv("DB_PORT"),
 	)
 
+	logger.Log.Info("Attempting to connect with:", dsn)
+
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		log.Println("Failed to connect to database:", err)
+		logger.Log.Error("Failed to connect to database:", err)
 	}
 
-	log.Println("✅ Connected to PostgreSQL Database")
+	logger.Log.Info("✅ Connected to PostgreSQL Database")
 }

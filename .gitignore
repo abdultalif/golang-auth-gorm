@@ -1,2 +1,9 @@
-.env
+.env.local
+.env.production
+
 tmp
+
+logs
+
+dockerfile
+docker-compose.yml

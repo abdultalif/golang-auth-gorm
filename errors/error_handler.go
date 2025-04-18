@@ -80,3 +80,4 @@ func handleValidationErrors(writer http.ResponseWriter, err validator.Validation
 
 	sendErrorResponse(writer, http.StatusBadRequest, "BAD REQUEST", errors)
 }
+

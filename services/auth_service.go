@@ -6,14 +6,21 @@ import (
 
 	"github.com/abdultalif/golang-auth-gorm/config"
 	"github.com/abdultalif/golang-auth-gorm/errors"
+	"github.com/abdultalif/golang-auth-gorm/logger"
 	"github.com/abdultalif/golang-auth-gorm/models"
 	"github.com/abdultalif/golang-auth-gorm/utils"
 	"github.com/abdultalif/golang-auth-gorm/validations"
+	"github.com/sirupsen/logrus"
 )
 
 
 func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
+
+    logger.Log.Info("Checking email existence")
     if config.DB.Where("email = ?", req.Email).First(&models.User{}).RowsAffected > 0 {
+        logger.Log.WithFields(logrus.Fields{
+            "email": req.Email,
+        }).Warn("Email already exists")
         return nil, errors.CustomError{
             Code:    http.StatusConflict,
             Status:  "CONFLICT",
@@ -27,63 +34,84 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         Email:    req.Email,
         Password: hashed,
     }
+    
+    logger.Log.Info("Creating new user in database")
     err := config.DB.Create(&user).Error
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Failed to create user")
         return nil, err
     }
 
+    logger.Log.Info("Creating verification code")
     code, err := CreateVerificationCode(user.ID)
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Failed to create verification code")
         return nil, err
     }
 
+    logger.Log.Info("Sending verification email")
     err = SendVerificationEmail(user.Email, code)
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Failed to send verification email")
         return nil, err
     }
 
+    logger.Log.Info("User registered successfully and verification email sent")
     return &user, nil
 }
 
-func CreateUser(name, email, password string) (*models.User, error) {
-
-	if config.DB.Where("email = ?", email).First(&models.User{}).RowsAffected > 0 {
-		panic(errors.CustomError{
-			Code: http.StatusConflict,
-			Status: "CONFLICT",
-			Message: "Email already exists",
-		})
-	}
-
-	hashed, _ := utils.HashPassword(password)
-	user := models.User{
-		Name:     name,
-		Email:    email,
-		Password: hashed,
-	}
-	err := config.DB.Create(&user).Error
-	return &user, err
-}
-
 func CreateVerificationCode(userID uint) (string, error) {
+
+    logger.Log.Info("Generating verification code")
 	code, err := utils.GenerateVerificationCode()
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{            
+            "error":   err.Error(),
+        }).Error("Failed to generate verification code")
+        return "", err
+    }
+
 	hashed, _ := utils.HashPassword(code)
-	if err != nil {
-		return "", err
-	}
 	verif := models.VerificationCode{
 		UserID:    userID,
 		Code:      hashed,
 		ExpiresAt: time.Now().Add(30 * time.Minute),
 	}
+
+    logger.Log.Info("Creating verification code in database")
 	err = config.DB.Create(&verif).Error
+
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Error("Failed to create verification code in database")
+        return "", err
+    }
+
+    logger.Log.Info("Verification code created successfully")
+
 	return code, err
 }
 
 func VerifyUserEmail(email, code string) error {
+
+    logger.Log.WithFields(logrus.Fields{
+        "email": email,
+    }).Info("Attempting to verify user email")
+
     var user models.User
     err := config.DB.Where("email = ?", email).First(&user).Error
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "email": email,
+            "error": err.Error(),
+        }).Warn("User not found for email verification")
         return errors.CustomError{
             Code:    http.StatusNotFound,
             Status:  "NOT FOUND",
@@ -91,9 +119,13 @@ func VerifyUserEmail(email, code string) error {
         }
     }
 
+    logger.Log.Info("Looking up verification code")
     var verificationCode models.VerificationCode
     err = config.DB.Where("user_id = ?", user.ID).First(&verificationCode).Error
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Warn("Verification code not found")
         return errors.CustomError{
             Code:    http.StatusBadRequest,
             Status:  "BAD REQUEST",
@@ -102,6 +134,7 @@ func VerifyUserEmail(email, code string) error {
     }
 
     if !utils.CheckPasswordHash(code, verificationCode.Code) {
+        logger.Log.Warn("Invalid verification code provided")
         return errors.CustomError{
             Code:    http.StatusBadRequest,
             Status:  "BAD REQUEST",
@@ -110,6 +143,7 @@ func VerifyUserEmail(email, code string) error {
     }
 
     if time.Now().After(verificationCode.ExpiresAt) {
+        logger.Log.Warn("Expired verification code provided")
         return errors.CustomError{
             Code:    http.StatusBadRequest,
             Status:  "BAD REQUEST",
@@ -117,45 +151,92 @@ func VerifyUserEmail(email, code string) error {
         }
     }
 
+    
+    logger.Log.Info("Marking user as verified")
     user.Verified = true
     config.DB.Save(&user)
     config.DB.Delete(&verificationCode)
+
+    logger.Log.Info("User email verified successfully")
 
     return nil
 }
 
 func ResendVerificationCode(email string) error {
+
+    logger.Log.WithFields(logrus.Fields{
+        "email": email,
+    }).Info("Attempting to resend verification code")
+
 	var user models.User
 	err := config.DB.Where("email = ?", email).First(&user).Error
 	if err != nil {
-		return errors.CustomError{
-			Code:    http.StatusNotFound,
-			Status:  "NOT FOUND",
-			Message: "User not registered",
-		}
-	}
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Warn("User not found for resending verification code")
+        return errors.CustomError{
+            Code:    http.StatusNotFound,
+            Status:  "NOT FOUND",
+            Message: "User not registered",
+        }
+    }
 
 	if user.Verified {
-		return errors.CustomError{
-			Code:    http.StatusConflict,
-			Status:  "CONFLICT",
-			Message: "User already verified. No further action is needed.",
-		}
-	}	
+        logger.Log.Warn("Attempt to resend verification code for already verified user")
+        return errors.CustomError{
+            Code:    http.StatusConflict,
+            Status:  "CONFLICT",
+            Message: "User already verified. No further action is needed.",
+        }
+    }
 
+    logger.Log.Info("Creating new verification code")
 	code, err := CreateVerificationCode(user.ID)
-	utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Error("Failed to create verification code")
+        panic(err)
+    }
 
+    logger.Log.Info("Sending verification email")
 	err = SendVerificationEmail(user.Email, code)
-	utils.PanicIfError(err)
+	if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Error("Failed to send verification email")
+        panic(err)
+    }
+
+    logger.Log.Info("Verification code resent successfully")
 
 	return nil
 }
 
 func AuthenticateUser(email, password string) (map[string]string, error) {
+    
+    logger.Log.WithFields(logrus.Fields{
+        "email": email,
+    }).Info("Attempting to authenticate user")
+
     var user models.User
     err := config.DB.Where("email = ?", email).First(&user).Error
-    if err != nil || !utils.CheckPasswordHash(password, user.Password) {
+
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Warn("Authentication failed - email not found")
+        
+        return nil, errors.CustomError{
+            Code:    http.StatusUnauthorized,
+            Status:  "UNAUTHORIZED",
+            Message: "Email or password is incorrect",
+        }
+    }
+
+    if !utils.CheckPasswordHash(password, user.Password) {
+        logger.Log.Warn("Authentication failed - incorrect password")
+
         return nil, errors.CustomError{
             Code:    http.StatusUnauthorized,
             Status:  "UNAUTHORIZED",
@@ -164,6 +245,8 @@ func AuthenticateUser(email, password string) (map[string]string, error) {
     }
 
     if !user.Verified {
+        logger.Log.Warn("Authentication failed - account not verified")
+        
         return nil, errors.CustomError{
             Code:    http.StatusForbidden,
             Status:  "FORBIDDEN",
@@ -171,15 +254,27 @@ func AuthenticateUser(email, password string) (map[string]string, error) {
         }
     }
 
+    logger.Log.Info("Generating JWT tokens")
+
     accessToken, err := utils.GenerateJWT(user.ID, user.Name, user.Email, false)
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Error("Failed to generate access token")
+        
         return nil, err
     }
 
     refreshToken, err := utils.GenerateJWT(user.ID, user.Name, user.Email, true)
     if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Error("Failed to generate refresh token")
+        
         return nil, err
     }
+
+    logger.Log.Info("User authenticated successfully")
 
     return map[string]string{
         "access_token":  accessToken,
@@ -188,24 +283,36 @@ func AuthenticateUser(email, password string) (map[string]string, error) {
 }
 
 func RefreshToken(refreshToken string) (map[string]string, error) {
-	claims, err := utils.VerifyToken(refreshToken, true)
-	if err != nil {
-		return nil, errors.CustomError{
-			Code:    http.StatusUnauthorized,
-			Status:  "UNAUTHORIZED",
-			Message: "Invalid refresh token",
-		}
-	}
+    logger.Log.Info("Attempting to refresh token")
 
-	id := uint(claims["id"].(float64))
+    claims, err := utils.VerifyToken(refreshToken, true)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Warn("Invalid refresh token provided")
+        
+        return nil, errors.CustomError{
+            Code:    http.StatusUnauthorized,
+            Status:  "UNAUTHORIZED",
+            Message: "Invalid refresh token",
+        }
+    }
 
-	accessToken, err := utils.GenerateJWT(id, claims["name"].(string), claims["email"].(string), false)
+    id := uint(claims["id"].(float64))
+    logger.Log.Info("Generating new access token")
 
-	if err != nil {
-		return nil, err
-	}	
+    accessToken, err := utils.GenerateJWT(id, claims["name"].(string), claims["email"].(string), false)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error":   err.Error(),
+        }).Error("Failed to generate new access token")
+        
+        return nil, err
+    }    
 
-	return map[string]string{	
-		"access_token": accessToken,
-	}, nil		
+    logger.Log.Info("Token refreshed successfully")
+
+    return map[string]string{    
+        "access_token": accessToken,
+    }, nil        
 }

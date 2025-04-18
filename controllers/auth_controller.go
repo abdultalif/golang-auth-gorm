@@ -5,12 +5,14 @@ import (
 
 	"github.com/abdultalif/golang-auth-gorm/config"
 	"github.com/abdultalif/golang-auth-gorm/errors"
+	"github.com/abdultalif/golang-auth-gorm/logger"
 	"github.com/abdultalif/golang-auth-gorm/models"
 	"github.com/abdultalif/golang-auth-gorm/services"
 	"github.com/abdultalif/golang-auth-gorm/utils"
 	"github.com/abdultalif/golang-auth-gorm/validations"
 	"github.com/go-playground/validator/v10"
 	"github.com/julienschmidt/httprouter"
+	"github.com/sirupsen/logrus"
 )
 
 var validate = validator.New()
@@ -22,13 +24,34 @@ type UserData struct {
 }
 
 func Register(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Register endpoint called")
+
     var req validations.RegisterRequest
     utils.ReadFromRequestBody(r, &req)
+    logger.Log.WithFields(logrus.Fields{
+        "email": req.Email,
+        "name":  req.Name,
+    }).Info("Registration attempt")
+
     err := validate.Struct(req)
-    utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)
+    }
 
     user, err := services.RegisterUser(req)
-    utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+            "email": req.Email,
+        }).Error("Registration failed")
+        panic(err)
+    }
 
     webResponse := utils.WebResponseSuccess{
         Success: true,
@@ -43,18 +66,48 @@ func Register(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
         },
     }
 
+    logger.Log.WithFields(logrus.Fields{
+        "id": user.ID,
+        "email":   user.Email,
+    }).Info("User registered successfully and sent verification email")
+
     w.WriteHeader(http.StatusCreated)
     utils.WriteToResponseBody(w, webResponse)
 }
 
-func VerifyUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func VerifyOTP(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Verification OTP endpoint called")
+
     var req validations.VerifyCodeRequest
     utils.ReadFromRequestBody(r, &req)
+
+    logger.Log.WithFields(logrus.Fields{
+        "email": req.Email,
+        "code":  req.Code,
+    }).Info("Verification OTP attempt")
+    
+
+
     err := validate.Struct(req)
-    utils.PanicIfError(err)
+	if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)
+    }
+    
 
     err = services.VerifyUserEmail(req.Email, req.Code)
-    utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Verification OTP failed")
+        panic(err)
+    }
 
     webResponse := utils.WebResponseSuccess{
         Success: true,
@@ -63,19 +116,41 @@ func VerifyUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
         Message: "User verified successfully",
     }
 
+    logger.Log.Info("User verified successfully")
+
     w.WriteHeader(http.StatusOK)
     utils.WriteToResponseBody(w, webResponse)
 }
 
 func ResendCode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Resend code endpoint called")
+
 	var req validations.ResendCodeRequest
 	utils.ReadFromRequestBody(r, &req)
 
+    logger.Log.WithFields(logrus.Fields{
+        "email": req.Email,
+    }).Info("Resend code attempt")
+
 	err := validate.Struct(req)
-	utils.PanicIfError(err)
+	if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)
+    }
 
 	err = services.ResendVerificationCode(req.Email)
-	utils.PanicIfError(err)
+	if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Resend code failed")
+        panic(err)
+    }
 
 	webResponse := utils.WebResponseSuccess{
 		Success: true,
@@ -84,19 +159,41 @@ func ResendCode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Message: "Verification code resent successfully, please check your email",
 	}
 
+    logger.Log.Info("Verification code resent successfully")
+
 	w.WriteHeader(http.StatusOK)
 	utils.WriteToResponseBody(w, webResponse)
 }
 
 
 func Login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Login endpoint called")
+
     var req validations.LoginRequest
     utils.ReadFromRequestBody(r, &req)
+    logger.Log.WithFields(logrus.Fields{
+        "email": req.Email,
+    }).Info("Loginn attempt")
+
+
     err := validate.Struct(req)
-    utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)  
+    }
 
     tokens, err := services.AuthenticateUser(req.Email, req.Password)
-    utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Login failed")
+        panic(err)
+    }
 
     webResponse := utils.WebResponseSuccess{
         Success: true,
@@ -106,20 +203,43 @@ func Login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
         Data:    tokens,
     }
 
+    logger.Log.WithFields(logrus.Fields{
+        "access_token": "secret",
+        "refresh_token": "secret",
+    }).Info("User login successfully")
+
     w.WriteHeader(http.StatusOK)
     utils.WriteToResponseBody(w, webResponse)
 }
 
 
 func RefreshToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Refresh token endpoint called")
+
 	var req validations.RefreshTokenRequest
 	utils.ReadFromRequestBody(r, &req)
+    logger.Log.WithFields(logrus.Fields{
+        "refresh_token": "secret",
+    }).Info("Refresh token attempt")
 
 	err := validate.Struct(req)
-	utils.PanicIfError(err)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)
+    }
 
 	accessToken, err := services.RefreshToken(req.RefreshToken)
-	utils.PanicIfError(err)
+	if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Refresh token failed")
+        panic(err)
+    }
 
 	webResponse := utils.WebResponseSuccess{
 		Success: true,
@@ -130,6 +250,10 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			"access_token": accessToken["access_token"],
 		},
 	}
+
+    logger.Log.WithFields(logrus.Fields{
+        "access_token": "secret",
+    }).Info("User refresh token successfully")
 
 	w.WriteHeader(http.StatusOK)
 	utils.WriteToResponseBody(w, webResponse)
@@ -162,7 +286,18 @@ func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		},
 	}
 
+    logger.Log.WithFields(logrus.Fields{
+        "access_token": "secret",
+    }).Info("User refresh token successfully")
+
 	w.WriteHeader(http.StatusOK)
 	utils.WriteToResponseBody(w, webResponse)
 }
 
+
+func ForgotPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+}
+func ResetPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+}
+func VerifyResetOTP(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+}

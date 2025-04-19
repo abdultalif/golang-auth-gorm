@@ -1,45 +1,45 @@
-# 🛡️ GoAuth - Authentication Service with Docker + PostgreSQL
+# 🛡️ Golang Auth GORM 
+Proyek ini adalah RESTful API Authentication Service yang dibangun dengan bahasa Go (Golang), menggunakan GORM sebagai ORM, dan PostgreSQL sebagai database. API ini menyediakan fitur autentikasi lengkap seperti registrasi, login, verifikasi email, dan middleware untuk proteksi rute.
 
-This project is a secure and scalable authentication microservice built with **Go**, **PostgreSQL**, **JWT**, and **Docker Compose**. It supports login, registration, token refresh, and email-based actions.
-
----
-
-## 📦 Features
-
-- JWT-based Authentication (Access & Refresh Tokens)
-- Secure Email Verification using SMTP
-- PostgreSQL Integration
-- Containerized with Docker
-- Healthcheck & Environment-based configuration
-- RESTful API with clean structure
+## 📌 Deskripsi
+Sistem ini dirancang untuk menyediakan backend otentikasi yang aman dan terstruktur menggunakan JWT dan email verification. Cocok digunakan sebagai starter untuk aplikasi berbasis user-authentication.
 
 ---
 
-## ⚙️ Environment Variables
+## ⚙️ Teknologi yang Digunakan
+- [Golang](https://golang.org/) - Bahasa pemrograman utama
+- [GORM](https://gorm.io/) - ORM untuk Golang
+- [PostgreSQL](https://www.postgresql.org/) - Database
+- [Docker](https://www.docker.com/) & Docker Compose - Untuk environment dan containerisasi
+- [JWT](https://jwt.io/) - JSON Web Token untuk autentikasi
+- [Net/HTTP](https://pkg.go.dev/net/http) - HTTP router dan server
+- Custom Middleware dan Validations
 
-Create a `.env.production` file in the root of your project with the following contents:
+---
 
-```env
-# App
-APP_PORT=3000
-APP_ENV=production
+## ✨ Fitur
+- ✅ Register pengguna dengan validasi
+- ✅ Login dan pembuatan token JWT
+- ✅ Verifikasi email menggunakan kode OTP
+- ✅ Middleware autentikasi untuk proteksi rute
+- ✅ Hashing password menggunakan bcrypt
+- ✅ Modularisasi file dan struktur folder yang rapi
+- ✅ Logging request dan error handling global
 
-# Database
-DB_HOST=db
-DB_PORT=5432
-DB_USER=talif
-DB_PASSWORD=password
-DB_NAME=goauth
+---
 
-# Email SMTP
-EMAIL_FROM=pizzaaaa21@gmail.com
-EMAIL_PASSWORD=ckozqicaqsqtmgkw
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
+## 📚 Dokumentasi API
+Dokumentasi lengkap API beserta contoh request/response tersedia di Postman:
 
-# JWT
-JWT_SECRET=prod_jwt_secret
-JWT_REFRESH_SECRET=prod_jwt_refresh
-JWT_EXPIRE_MINUTES=180
-JWT_REFRESH_EXPIRE_MINUTES=1440
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://documenter.getpostman.com/view/27633194/2sB2cbZJCH)
+
+---
+
+## 🚀 Cara Menjalankan Program
+### 1. Clone Repositori
+```bash
+git clone https://github.com/abdultalif/golang-auth-gorm.git
+cd golang-auth-gorm
+cp .env.example .env.local & .env.production
+docker-compose up --build
 ```

@@ -9,22 +9,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: talif
-      DB_PASSWORD: password
-      DB_NAME: goauth
-      APP_PORT: 3000
-      APP_ENV: production
-      EMAIL_FROM: pizzaaaa21@gmail.com
-      EMAIL_PASSWORD: ckozqicaqsqtmgkw
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      JWT_SECRET: IyBLe4FxXOEghKvqOJlhWe63emkX7tOJeHubuh83L5PckRbF5o
-      JWT_REFRESH_SECRET: 5X91uK1G8dSJDWvDfJCGzM2IsSprt11vnaaGPLUTrBdsnVmYX0
-      JWT_EXPIRE_MINUTES: 180
-      JWT_REFRESH_EXPIRE_MINUTES: 1440
+    env_file:
+      - .env.production
     ports:
       - "3000:3000"
     links:
@@ -33,10 +19,12 @@ services:
   postgres:
     image: postgres:15-alpine
     restart: unless-stopped
+    env_file:
+      - .env.production
     environment:
-      POSTGRES_USER: talif
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: goauth
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     expose:
       - "5432"
     ports:

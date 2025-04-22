@@ -34,7 +34,7 @@ func SendResetPasswordEmail(to string, token string) error {
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", "Password Reset Request")
 	
-	resetURL := os.Getenv("FRONTEND_URL") + "/reset-password?token=" + token
+	resetURL := os.Getenv("FRONTEND_URL") + "/reset-password?token=" + token + "&email=" + to
     htmlBody := `
         <p>Click the link below to reset your password:</p>
         <a href="` + resetURL + `" target="_blank">Reset Password</a>

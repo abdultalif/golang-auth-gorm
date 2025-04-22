@@ -28,3 +28,20 @@ type RefreshTokenRequest struct {
 type ForgotPasswordRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+type CheckTokenRequest struct {
+	Token string `json:"token" validate:"required,uuid"`
+	Email string `json:"email" validate:"required,email"`
+}
+
+type TokenRequest struct {
+	Token string `json:"token" validate:"required,uuid"`
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Email              string `json:"email" validate:"required,email"`
+	Token              string `json:"token" validate:"required,uuid"`
+	NewPassword        string `json:"new_password" validate:"required,min=6"`
+	NewConfirmPassword string `json:"new_confirm_password" validate:"required,min=6,eqfield=NewPassword"`
+}

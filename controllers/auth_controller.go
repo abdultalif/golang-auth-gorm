@@ -344,7 +344,76 @@ func ForgotPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 
 }
 
+func CheckToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+    
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Check token endpoint called")
+
+    var req validations.CheckTokenRequest
+    utils.ReadFromRequestBody(r, &req)
+    logger.Log.WithFields(logrus.Fields{
+        "token": req.Token,
+    }).Info("Check token attempt")
+
+    err := validate.Struct(req)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)
+    }
+
+    err = services.CheckToken(req.Token, req.Email)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Check token service failed")
+		panic(err)
+	}
+
+    webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "Check token successfully",
+    }
+
+    logger.Log.Info("Check token successfully")
+
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
+}
+
 func ResetPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	logger.Log.WithFields(logrus.Fields{
+		"method": r.Method,
+		"path":   r.URL.Path,
+	}).Info("Reset password endpoint called")
+
+	var req validations.ResetPasswordRequest
+	utils.ReadFromRequestBody(r, &req)
+
+	err := validate.Struct(req)
+	if err != nil {
+		logger.Log.WithField("error", err.Error()).Error("Validation failed")
+		panic(err)
+	}
+
+	err = services.ResetPassword(req)
+	if err != nil {
+		logger.Log.WithField("error", err.Error()).Error("Reset password service failed")
+		panic(err)
+	}
+
+	webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "Password has been reset successfully",
+	}
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
 }
-func VerifyResetOTP(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-}
+

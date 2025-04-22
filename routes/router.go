@@ -24,7 +24,7 @@ func SetupRouter() *httprouter.Router {
 	router.POST("/api/v1/auth/login", controllers.Login)
 	router.POST("/api/v1/auth/refresh-token", controllers.RefreshToken)
 	router.POST("/api/v1/auth/forgot-password", controllers.ForgotPassword)
-	router.POST("/api/v1/auth/verify-reset-otp", controllers.VerifyResetOTP)
+	router.POST("/api/v1/auth/check-token", controllers.CheckToken)
 	router.POST("/api/v1/auth/reset-password", controllers.ResetPassword)
 
 	router.Handler("GET", "/api/v1/user/profile", ProtectedRoute(controllers.GetProfile))

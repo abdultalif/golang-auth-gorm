@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/abdultalif/golang-auth-gorm/logger"
 	"github.com/abdultalif/golang-auth-gorm/utils"
 	"github.com/go-playground/validator/v10"
+	"github.com/sirupsen/logrus"
 )
 
 
@@ -37,6 +39,11 @@ func sendErrorResponse(writer http.ResponseWriter, code int, status string, mess
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(code)
 
+	logger.Log.WithFields(logrus.Fields{
+		"code":   code,
+		"status": status,
+		"error":  message,
+	}).Error("Sending error response")
 	errorResponse := utils.WebResponseError{
 		Success: false,
 		Code:    code,
@@ -71,6 +78,8 @@ func handleValidationErrors(writer http.ResponseWriter, err validator.Validation
 			message = fmt.Sprintf("Minimum length is %s", e.Param())
 		case "max":
 			message = fmt.Sprintf("Maximum length is %s", e.Param())
+		case "uuid":
+			message = "Invalid UUID format"
 		default:
 			message = fmt.Sprintf("Field validation failed on '%s' tag", e.Tag())
 		}

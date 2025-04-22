@@ -385,3 +385,115 @@ func RefreshToken(refreshToken string) (map[string]string, error) {
         "access_token": accessToken,
     }, nil        
 }
+
+func CheckToken(token, email string) error {  
+
+    logger.Log.WithFields(logrus.Fields{
+		"token": token,
+	}).Info("Checking if user exists for Check token")
+
+    
+    logger.Log.Info("Checking if Email is")
+	var user models.User
+	if err := config.DB.Where("email = ?", email).First(&user).Error; err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+            }).Warn("User not found")
+            return errors.CustomError{
+                Code:    http.StatusNotFound,
+                Status:  "NOT FOUND",
+                Message: "Email not registered",
+            }
+    }
+
+    var reset models.PasswordReset
+    if err := config.DB.Where("user_id = ?", user.ID).First(&reset).Error; err != nil {
+		logger.Log.WithField("error", err.Error()).Warn("Reset token not found for user")
+		return errors.CustomError{
+			Code:    http.StatusNotFound,
+			Status:  "NOT FOUND",
+			Message: "Reset token not found",
+		}
+	}
+
+    if !utils.CheckPasswordHash(token, reset.Token) {
+		logger.Log.Warn("Invalid token provided")
+		return errors.CustomError{
+			Code:    http.StatusUnauthorized,
+			Status:  "UNAUTHORIZED",
+			Message: "Invalid token",
+		}
+	}
+
+    if time.Now().After(reset.ExpiresAt) {
+		logger.Log.WithField("expires_at", reset.ExpiresAt).Warn("Reset token expired")
+		return errors.CustomError{
+			Code:    http.StatusUnauthorized,
+			Status:  "UNAUTHORIZED",
+			Message: "Reset token has expired",
+		}
+	}
+
+	logger.Log.Info("Reset token verified successfully")
+	return nil
+}
+
+
+
+func ResetPassword(request validations.ResetPasswordRequest) error {
+	var user models.User
+	if err := config.DB.Where("email = ?", request.Email).First(&user).Error; err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Email not registered")
+		return errors.CustomError{
+			Code:    http.StatusNotFound,
+			Status:  "NOT FOUND",
+			Message: "Email not registered",
+		}
+	}
+
+	var reset models.PasswordReset
+	if err := config.DB.Where("user_id = ?", user.ID).First(&reset).Error; err != nil {
+        logger.Log.WithField("error", err.Error()).Warn("Reset token not found for user")
+		return errors.CustomError{
+			Code:    http.StatusNotFound,
+			Status:  "NOT FOUND",
+			Message: "Reset token not found",
+		}
+	}
+
+	if !utils.CheckPasswordHash(request.Token, reset.Token) {
+        logger.Log.Warn("Invalid token provided")
+		return errors.CustomError{
+			Code:    http.StatusUnauthorized,
+			Status:  "UNAUTHORIZED",
+			Message: "Invalid token",
+		}
+	}
+
+	if time.Now().After(reset.ExpiresAt) {
+        logger.Log.WithField("expires_at", reset.ExpiresAt).Warn("Reset token expired")
+		return errors.CustomError{
+			Code:    http.StatusUnauthorized,
+			Status:  "UNAUTHORIZED",
+			Message: "Reset token has expired",
+		}
+	}
+
+	hashedPassword, err := utils.HashPassword(request.NewPassword)
+	if err != nil {
+        panic(err)
+	}
+
+	if err := config.DB.Model(&user).Update("password", hashedPassword).Error; err != nil {
+		panic(err)
+	}
+
+    if err := config.DB.Delete(&reset).Error; err != nil {
+        logger.Log.WithField("error", err.Error()).Error("Failed to delete reset token")
+        panic(err)
+    }
+
+	return nil
+}

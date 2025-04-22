@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
-func GenerateJWT(userID uint, name string, email string, isRefresh bool) (string, error) {
+func GenerateJWT(userID uuid.UUID, name string, email string, isRefresh bool) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	expMinute := os.Getenv("JWT_EXPIRE_MINUTES")
 

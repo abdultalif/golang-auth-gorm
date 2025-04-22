@@ -67,7 +67,7 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
     return &user, nil
 }
 
-func CreateVerificationCode(userID uint) (string, error) {
+func CreateVerificationCode(userID uuid.UUID) (string, error) {
 
     logger.Log.Info("Generating verification code")
 	code, err := utils.GenerateVerificationCode()
@@ -368,9 +368,8 @@ func RefreshToken(refreshToken string) (map[string]string, error) {
         }
     }
 
-    id := uint(claims["id"].(float64))
+    id, _ := uuid.Parse(claims["id"].(string))
     logger.Log.Info("Generating new access token")
-
     accessToken, err := utils.GenerateJWT(id, claims["name"].(string), claims["email"].(string), false)
     if err != nil {
         logger.Log.WithFields(logrus.Fields{

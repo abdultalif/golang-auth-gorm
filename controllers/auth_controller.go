@@ -11,13 +11,14 @@ import (
 	"github.com/abdultalif/golang-auth-gorm/utils"
 	"github.com/abdultalif/golang-auth-gorm/validations"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 	"github.com/sirupsen/logrus"
 )
 
 var validate = validator.New()
 type UserData struct {
-    ID       uint   `json:"id"`
+    ID       uuid.UUID   `json:"id"`
     Name     string `json:"name"`
     Email    string `json:"email"`
     Verified bool   `json:"verified"`
@@ -262,9 +263,14 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	id := r.Header.Get("X-User-ID")
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+        "id": id,
+    }).Info("Get profile endpoint called")
 
 	var user models.User
-	err := config.DB.First(&user, id).Error
+	err := config.DB.Where("id = ?", id).First(&user).Error
 	if err != nil {
 		panic(errors.CustomError{
 			Code: http.StatusNotFound,

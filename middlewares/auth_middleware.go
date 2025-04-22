@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -30,9 +29,8 @@ func JWTAuth(next http.HandlerFunc) http.HandlerFunc {
 				Message: "Invalid or expired token",
 			})
 		}
-
-		id := uint(claims["id"].(float64))
-		r.Header.Set("X-User-ID", fmt.Sprintf("%d", id))
+		
+		r.Header.Set("X-User-ID", claims ["id"].(string))
 		next(w, r)
 
 	}

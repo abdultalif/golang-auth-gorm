@@ -296,7 +296,48 @@ func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 
 func ForgotPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+    
+    logger.Log.WithFields(logrus.Fields{
+        "method": r.Method,
+        "path":   r.URL.Path,
+    }).Info("Forgot password endpoint called")
+
+    var req validations.ForgotPasswordRequest
+    utils.ReadFromRequestBody(r, &req)
+    logger.Log.WithFields(logrus.Fields{
+        "email": req.Email,
+    }).Info("Forgot password attempt")
+
+    err := validate.Struct(req)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Validation failed")
+        panic(err)
+    }
+
+    err = services.ForgotPassword(req.Email)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Forgot password service failed")
+		panic(err)
+	}
+
+    webResponse := utils.WebResponseSuccess{
+		Success: true,
+		Code:    http.StatusOK,
+		Status:  "OK",
+		Message: "Forgot password successfully",
+	}
+
+    logger.Log.Info("Forgot password successfully")
+
+	w.WriteHeader(http.StatusOK)
+	utils.WriteToResponseBody(w, webResponse)
+
 }
+
 func ResetPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 func VerifyResetOTP(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

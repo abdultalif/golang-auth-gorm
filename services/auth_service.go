@@ -10,12 +10,13 @@ import (
 	"github.com/abdultalif/golang-auth-gorm/models"
 	"github.com/abdultalif/golang-auth-gorm/utils"
 	"github.com/abdultalif/golang-auth-gorm/validations"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 
 func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
-
+ 
     logger.Log.Info("Checking email existence")
     if config.DB.Where("email = ?", req.Email).First(&models.User{}).RowsAffected > 0 {
         logger.Log.WithFields(logrus.Fields{
@@ -97,6 +98,75 @@ func CreateVerificationCode(userID uint) (string, error) {
     logger.Log.Info("Verification code created successfully")
 
 	return code, err
+}
+
+func ForgotPassword(email string) error {  
+
+    logger.Log.WithFields(logrus.Fields{
+		"email": email,
+	}).Info("Checking if user exists for forgot password")
+
+    logger.Log.Info("Checking if user is registered")
+	var user models.User
+	if err := config.DB.Where("email = ?", email).First(&user).Error; err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+            }).Warn("Email not registered")
+            return errors.CustomError{
+                Code:    http.StatusNotFound,
+                Status:  "NOT FOUND",
+                Message: "Email not registered",
+            }
+        }
+        
+    logger.Log.Info("Checking if user is verified")
+    if !user.Verified {
+        logger.Log.WithFields(logrus.Fields{
+            "email": email,
+        }).Warn("User not verified")
+        return errors.CustomError{
+            Code:    http.StatusUnauthorized,
+            Status:  "UNAUTHORIZED",
+            Message: "User not verified",
+        }
+    }
+
+    logger.Log.Info("Deleting previous password reset token if any")
+    if err := config.DB.Unscoped().Where("user_id = ?", user.ID).Delete(&models.PasswordReset{}).Error; err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Failed to delete old reset tokens")
+        panic(err)
+    }
+
+	token := uuid.New().String()
+	hashed, _ := utils.HashPassword(token)
+
+    reset := models.PasswordReset{
+		UserID:    user.ID,
+		Token:      hashed,
+		ExpiresAt: time.Now().Add(30 * time.Minute),
+	}
+
+	logger.Log.Info("Saving reset code to database")
+	if err := config.DB.Create(&reset).Error; err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Failed to store reset code")
+        panic(err)
+	}
+
+	
+	logger.Log.Info("Sending reset password email")
+	if err := SendResetPasswordEmail(email, token); err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Failed to send reset password email")
+        panic(err)
+	}
+
+	logger.Log.Info("Reset password email sent successfully")
+	return nil
 }
 
 func VerifyUserEmail(email, code string) error {

@@ -57,3 +57,12 @@ GET http://localhost:3000/api/v1/user/profile
 Accept: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFiZHVsdGFsaWY3NUBnbWFpbC5jb20iLCJleHAiOjE3NDQ3NDE2NTEsImlkIjozLCJuYW1lIjoiQWJkdWwgVGFsaWYifQ.XGSHBXW5yb0uEr3pGIzyQoXjl0XF5cOoIDPmI2Drh3E
 
+
+### forgot password
+POST http://localhost:3000/api/v1/auth/forgot-password
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "abdultalif75@gmail.com"
+}

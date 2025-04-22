@@ -13,7 +13,7 @@ import (
 func main() {
 	config.LoadENV()
 	config.ConnectDB()
-	config.DB.AutoMigrate(&models.User{}, &models.VerificationCode{})
+	config.DB.AutoMigrate(&models.User{}, &models.VerificationCode{}, &models.PasswordReset{})
 
 	router := routes.SetupRouter()
 

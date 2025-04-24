@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/abdultalif/golang-auth-gorm/config"
+	"github.com/abdultalif/golang-auth-gorm/logger"
+	"github.com/abdultalif/golang-auth-gorm/middlewares"
 	"github.com/abdultalif/golang-auth-gorm/routes"
 )
 
@@ -16,6 +17,6 @@ func main() {
 	router := routes.SetupRouter()
 
 	port := os.Getenv("APP_PORT")
-	log.Println("🚀 Server running on port:", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	logger.Log.Println("🚀 Server running on port:", port)
+	logger.Log.Fatal(http.ListenAndServe(":"+port, middlewares.CORS(router)))
 }

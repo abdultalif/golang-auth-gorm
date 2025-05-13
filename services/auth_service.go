@@ -17,7 +17,6 @@ import (
 
 func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
  
-    logger.Log.Info("Checking email existence")
     if config.DB.Where("email = ?", req.Email).First(&models.User{}).RowsAffected > 0 {
         logger.Log.WithFields(logrus.Fields{
             "email": req.Email,
@@ -36,7 +35,6 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         Password: hashed,
     }
     
-    logger.Log.Info("Creating new user in database")
     err := config.DB.Create(&user).Error
     if err != nil {
         logger.Log.WithFields(logrus.Fields{
@@ -45,7 +43,6 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         return nil, err
     }
 
-    logger.Log.Info("Creating verification code")
     code, err := CreateVerificationCode(user.ID)
     if err != nil {
         logger.Log.WithFields(logrus.Fields{
@@ -54,22 +51,28 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         return nil, err
     }
 
-    logger.Log.Info("Sending verification email")
-    err = SendVerificationEmail(user.Email, code)
-    if err != nil {
-        logger.Log.WithFields(logrus.Fields{
-            "error": err.Error(),
-        }).Error("Failed to send verification email")
-        return nil, err
+    type VerificationPayload struct {
+        Email string `json:"email"`
+        Code string `json:"code"`
     }
 
-    logger.Log.Info("User registered successfully and verification email sent")
+    payload := VerificationPayload{
+        Email: user.Email,
+        Code: code,
+    }
+
+    err = utils.PublishMessage(payload)
+    if err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Warn("Failed to queue email verification")
+	}
+
     return &user, nil
 }
 
 func CreateVerificationCode(userID uuid.UUID) (string, error) {
 
-    logger.Log.Info("Generating verification code")
 	code, err := utils.GenerateVerificationCode()
     if err != nil {
         logger.Log.WithFields(logrus.Fields{            
@@ -85,7 +88,6 @@ func CreateVerificationCode(userID uuid.UUID) (string, error) {
 		ExpiresAt: time.Now().Add(30 * time.Minute),
 	}
 
-    logger.Log.Info("Creating verification code in database")
 	err = config.DB.Create(&verif).Error
 
     if err != nil {
@@ -94,8 +96,6 @@ func CreateVerificationCode(userID uuid.UUID) (string, error) {
         }).Error("Failed to create verification code in database")
         return "", err
     }
-
-    logger.Log.Info("Verification code created successfully")
 
 	return code, err
 }

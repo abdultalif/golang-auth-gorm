@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	ExchangeName = "auth_exchange"
-	QueueName    = "email_verification"
-	RoutingKey   = "email.verification"
+	ExchangeName = "email_exchange"
+	RegisterQueue = "register_verification"
+	RegisterRoutingKey = "email.verification"
+	ForgotPasswordQueue = "forgot_password"
+	ForgotPasswordRoutingKey = "email.forgot_password"
 )
 
 var (
@@ -52,7 +54,7 @@ conn, err := amqp091.Dial(url)
 	}
 
 	_, err = channel.QueueDeclare(
-		QueueName,
+		RegisterQueue,
 		true,
 		false,
 		false,
@@ -66,14 +68,40 @@ conn, err := amqp091.Dial(url)
 	}
 
 	err = channel.QueueBind(
-		QueueName,
-		RoutingKey,
+		RegisterQueue,
+		RegisterRoutingKey,
 		ExchangeName,
 		false,
 		nil,
 	)
 	if err != nil {
 		log.Fatalf("❌ Failed to bind queue: %v", err)
+	}
+
+
+	_, err = channel.QueueDeclare(
+		ForgotPasswordQueue,
+		true,
+		false,
+		false,
+		false,
+		amqp091.Table{
+			"x-queue-type": "quorum",
+		},
+	)
+	if err != nil {
+		log.Fatalf("❌ Failed to declare forgot password queue: %v", err)
+	}
+
+	err = channel.QueueBind(
+		ForgotPasswordQueue,
+		ForgotPasswordRoutingKey,
+		ExchangeName,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("❌ Failed to bind forgot password queue: %v", err)
 	}
 
 	RabbitMQConn = conn

@@ -16,6 +16,7 @@ func main() {
 	config.ConnectDB()
 	config.InitRabbitMQ()
 	workers.ConsumeVerificationQueue()
+	workers.ConsumeForgotPasswordQueue()
 
 	router := routes.SetupRouter()
 

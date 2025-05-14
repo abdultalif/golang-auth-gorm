@@ -45,7 +45,7 @@ func getIntEnv(key string, fallback int) int {
 
 
 
-func SendResetPasswordEmail(to string, token string) error {
+func SendForgotPasswordEmail(to string, token string) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", os.Getenv("EMAIL_FROM"))
 	m.SetHeader("To", to)

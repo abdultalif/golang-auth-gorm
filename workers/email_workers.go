@@ -17,7 +17,7 @@ type VerificationPayload struct {
 func ConsumeVerificationQueue() {
 
 	msgs, err := config.RabbitMQChannel.Consume(
-		config.QueueName,
+		config.RegisterQueue,
 		"",
 		true,
 		false,

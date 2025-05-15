@@ -4,3 +4,12 @@
 tmp
 
 logs
+
+api-spec.yaml
+
+docker-compose.yaml
+
+Dockerfile
+
+
+.env

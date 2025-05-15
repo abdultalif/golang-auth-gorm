@@ -8,11 +8,15 @@ import (
 	"github.com/abdultalif/golang-auth-gorm/logger"
 	"github.com/abdultalif/golang-auth-gorm/middlewares"
 	"github.com/abdultalif/golang-auth-gorm/routes"
+	"github.com/abdultalif/golang-auth-gorm/workers"
 )
 
 func main() {
 	config.LoadENV()
 	config.ConnectDB()
+	config.InitRabbitMQ()
+	workers.ConsumeVerificationQueue()
+	workers.ConsumeForgotPasswordQueue()
 
 	router := routes.SetupRouter()
 

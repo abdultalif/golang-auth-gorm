@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/abdultalif/golang-auth-gorm/logger"
+	"github.com/abdultalif/golang-auth-gorm/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,17 @@ func ConnectDB() {
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		logger.Log.Error("Failed to connect to database:", err)
+		logger.Log.Error("❌ Failed to connect to database:", err)
+	}
+
+
+	err = DB.AutoMigrate(
+		&models.User{},
+		&models.PasswordReset{},
+		&models.VerificationCode{},
+	)
+	if err != nil {
+		logger.Log.Error("❌ Failed to migrate database:", err)
 	}
 
 	logger.Log.Info("✅ Connected to PostgreSQL Database")

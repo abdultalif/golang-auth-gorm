@@ -17,7 +17,6 @@ import (
 
 func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
  
-    logger.Log.Info("Checking email existence")
     if config.DB.Where("email = ?", req.Email).First(&models.User{}).RowsAffected > 0 {
         logger.Log.WithFields(logrus.Fields{
             "email": req.Email,
@@ -36,7 +35,6 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         Password: hashed,
     }
     
-    logger.Log.Info("Creating new user in database")
     err := config.DB.Create(&user).Error
     if err != nil {
         logger.Log.WithFields(logrus.Fields{
@@ -45,7 +43,6 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         return nil, err
     }
 
-    logger.Log.Info("Creating verification code")
     code, err := CreateVerificationCode(user.ID)
     if err != nil {
         logger.Log.WithFields(logrus.Fields{
@@ -54,22 +51,28 @@ func RegisterUser(req validations.RegisterRequest) (*models.User, error) {
         return nil, err
     }
 
-    logger.Log.Info("Sending verification email")
-    err = SendVerificationEmail(user.Email, code)
-    if err != nil {
-        logger.Log.WithFields(logrus.Fields{
-            "error": err.Error(),
-        }).Error("Failed to send verification email")
-        return nil, err
+    type VerificationPayload struct {
+        Email string `json:"email"`
+        Code string `json:"code"`
     }
 
-    logger.Log.Info("User registered successfully and verification email sent")
+    payload := VerificationPayload{
+        Email: user.Email,
+        Code: code,
+    }
+
+    err = utils.PublishMessage(payload)
+    if err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Warn("Failed to queue email verification")
+	}
+
     return &user, nil
 }
 
 func CreateVerificationCode(userID uuid.UUID) (string, error) {
 
-    logger.Log.Info("Generating verification code")
 	code, err := utils.GenerateVerificationCode()
     if err != nil {
         logger.Log.WithFields(logrus.Fields{            
@@ -85,7 +88,6 @@ func CreateVerificationCode(userID uuid.UUID) (string, error) {
 		ExpiresAt: time.Now().Add(30 * time.Minute),
 	}
 
-    logger.Log.Info("Creating verification code in database")
 	err = config.DB.Create(&verif).Error
 
     if err != nil {
@@ -95,18 +97,10 @@ func CreateVerificationCode(userID uuid.UUID) (string, error) {
         return "", err
     }
 
-    logger.Log.Info("Verification code created successfully")
-
 	return code, err
 }
 
 func ForgotPassword(email string) error {  
-
-    logger.Log.WithFields(logrus.Fields{
-		"email": email,
-	}).Info("Checking if user exists for forgot password")
-
-    logger.Log.Info("Checking if user is registered")
 	var user models.User
 	if err := config.DB.Where("email = ?", email).First(&user).Error; err != nil {
         logger.Log.WithFields(logrus.Fields{
@@ -119,7 +113,6 @@ func ForgotPassword(email string) error {
             }
         }
         
-    logger.Log.Info("Checking if user is verified")
     if !user.Verified {
         logger.Log.WithFields(logrus.Fields{
             "email": email,
@@ -131,7 +124,6 @@ func ForgotPassword(email string) error {
         }
     }
 
-    logger.Log.Info("Deleting previous password reset token if any")
     if err := config.DB.Unscoped().Where("user_id = ?", user.ID).Delete(&models.PasswordReset{}).Error; err != nil {
         logger.Log.WithFields(logrus.Fields{
             "error": err.Error(),
@@ -156,14 +148,22 @@ func ForgotPassword(email string) error {
         panic(err)
 	}
 
-	
-	logger.Log.Info("Sending reset password email")
-	if err := SendResetPasswordEmail(email, token); err != nil {
-		logger.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Failed to send reset password email")
-        panic(err)
-	}
+    type ForgotPasswordPayload struct {
+        Email string `json:"email"`
+        Token string `json:"token"`
+    }
+
+    payloadForgot := ForgotPasswordPayload{
+        Email: user.Email,
+        Token: token,
+    }
+
+    err := utils.PublishMessageWithRouting(payloadForgot)
+    if err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Warn("Failed to queue reset password email")
+    }
 
 	logger.Log.Info("Reset password email sent successfully")
 	return nil

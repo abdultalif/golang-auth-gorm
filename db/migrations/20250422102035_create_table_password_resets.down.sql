@@ -1,1 +1,0 @@
-DROP Table IF EXISTS password_resets

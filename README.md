@@ -13,6 +13,7 @@ Sistem ini dirancang untuk menyediakan backend otentikasi yang aman dan terstruk
 - [Golang](https://golang.org/) - Bahasa pemrograman utama
 - [GORM](https://gorm.io/) - ORM untuk Golang
 - [PostgreSQL](https://www.postgresql.org/) - Database
+- [RabbitMQ](https://www.rabbitmq.com/) - Message Broker
 - [Docker](https://www.docker.com/) & Docker Compose - Untuk environment dan containerisasi
 - [JWT](https://jwt.io/) - JSON Web Token untuk autentikasi
 - [Net/HTTP](https://pkg.go.dev/net/http) - HTTP router dan server

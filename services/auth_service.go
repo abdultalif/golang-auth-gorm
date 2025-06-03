@@ -260,6 +260,13 @@ func ResendVerificationCode(email string) error {
         }
     }
 
+    if err := config.DB.Unscoped().Where("user_id = ?", user.ID).Delete(&models.VerificationCode{}).Error; err != nil {
+        logger.Log.WithFields(logrus.Fields{
+            "error": err.Error(),
+        }).Error("Failed to delete old verification codes")
+        panic(err)
+    }
+
     logger.Log.Info("Creating new verification code")
 	code, err := CreateVerificationCode(user.ID)
     if err != nil {
@@ -269,14 +276,31 @@ func ResendVerificationCode(email string) error {
         panic(err)
     }
 
-    logger.Log.Info("Sending verification email")
-	err = SendVerificationEmail(user.Email, code)
-	if err != nil {
-        logger.Log.WithFields(logrus.Fields{
-            "error":   err.Error(),
-        }).Error("Failed to send verification email")
-        panic(err)
+    type VerificationPayload struct {
+        Email string `json:"email"`
+        Code string `json:"code"`
     }
+
+    payload := VerificationPayload{
+        Email: user.Email,
+        Code: code,
+    }
+
+    err = utils.PublishMessage(payload)
+    if err != nil {
+		logger.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Warn("Failed to queue email verification")
+	}
+
+    // logger.Log.Info("Sending verification email")
+	// err = SendVerificationEmail(user.Email, code)
+	// if err != nil {
+    //     logger.Log.WithFields(logrus.Fields{
+    //         "error":   err.Error(),
+    //     }).Error("Failed to send verification email")
+    //     panic(err)
+    // }
 
     logger.Log.Info("Verification code resent successfully")
 
